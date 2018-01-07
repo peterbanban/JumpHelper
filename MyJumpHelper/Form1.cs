@@ -20,7 +20,9 @@ namespace MyJumpHelper
         private string adbPath = "adb.exe";
         private bool isRunning = false;
         private int jumpInterval = 3000;
-        private int convertRatio = 1480;       
+        private int convertRatio = 1480;
+        private double WaitingFlag = -1;
+        private int exitWaiting = 0;
 
         public JumpHelper()
         {
@@ -38,18 +40,20 @@ namespace MyJumpHelper
         private void loopThread()
         {
             string[] cmd = { "shell /system/bin/screencap -p /sdcard/screenshot_jp.png", "pull /sdcard/screenshot_jp.png" };
-            while (true) {
+            while (true)
+            {
                 if (this.isRunning)
                 {
                     this.sendADBCmd(cmd);
-                    Thread.Sleep(600);
+                    Thread.Sleep(600 + new Random().Next(400));    //加随机数防反挂
                     this.processScreenshot();
                     Thread.Sleep(this.jumpInterval - 600);
                 }
-                else {
+                else
+                {
                     Thread.Sleep(1000);
-                }              
-                
+                }
+
             }
         }
 
@@ -63,29 +67,32 @@ namespace MyJumpHelper
             this.stopAutoJump();
         }
 
-        private void stopAutoJump() {
+        private void stopAutoJump()
+        {
             this.isRunning = false;
             this.stop.Enabled = false;
             this.start.Enabled = true;
         }
-        private void startAutoJump() {
+        private void startAutoJump()
+        {
             if (!this.test_ADB())
             {
                 return;
             }
             this.isRunning = true;
             this.stop.Enabled = true;
-            this.start.Enabled = false;            
+            this.start.Enabled = false;
         }
 
-       
+
         private int calColorErr(Color c1, Color c2)
         {
             return (c1.R - c2.R) * (c1.R - c2.R) + (c1.G - c2.G) * (c1.G - c2.G) + (c1.B - c2.B) * (c1.B - c2.B);
         }
 
-        private int[] findTargetEdge(int direction,int[,] cache, int []start, LockBitmap lockbmp) {            
-            int[] ret = { 0, 0 };            
+        private int[] findTargetEdge(int direction, int[,] cache, int[] start, LockBitmap lockbmp)
+        {
+            int[] ret = { 0, 0 };
             int curX = start[0];
             int curY = start[1];
             while (curX > 0 && curX < lockbmp.Width - 1)
@@ -94,9 +101,9 @@ namespace MyJumpHelper
                 int newY = -1;
                 for (int y = 0; y < 7; y++)
                 {
-                    if (cache[curX, curY + y - 1] == 1 && cache[curX, curY + y ] != 1 && cache[curX, curY + y + 1] != 1 && cache[curX, curY + y + 2] != 1 && cache[curX, curY + y + 3] != 1 && cache[curX, curY + y + 4] != 1)
+                    if (cache[curX, curY + y - 1] == 1 && cache[curX, curY + y] != 1 && cache[curX, curY + y + 1] != 1 && cache[curX, curY + y + 2] != 1 && cache[curX, curY + y + 3] != 1 && cache[curX, curY + y + 4] != 1)
                     {
-                        newY = curY + y;                       
+                        newY = curY + y;
                         //lockbmp.SetPixel(curX, newY, Color.FromArgb(0, 0, 255));
                         //lockbmp.SetPixel(curX, newY + 1, Color.FromArgb(0, 0, 255));
                         //lockbmp.SetPixel(curX, newY - 1, Color.FromArgb(0, 0, 255));                       
@@ -114,7 +121,7 @@ namespace MyJumpHelper
             return ret;
         }
         private bool isBgColor(Color bg, Color bgS, Color d)
-        {           
+        {
             /*
             int bgError = 0;
 
@@ -140,26 +147,26 @@ namespace MyJumpHelper
             catch
             {
                 this.stopAutoJump();
-                MessageBox.Show("打开图片时出错，请确认ADB已连接并工作正常");                
+                MessageBox.Show("打开图片时出错，请确认ADB已连接并工作正常");
                 return;
-            }       
-             
-            
+            }
+
+
 
             Color curColor;
             Color curBgColor;
             Color curBgShadow;
-            Color figureColor = Color.FromArgb(54, 59, 99);            
-          
+            Color figureColor = Color.FromArgb(54, 59, 99);
+
             int[,] cache = new int[lockbmp.Width, lockbmp.Height];
 
-                      
+
             bool isTargetFound = false;
             bool isFigureFound = false;
 
             int[] targetStart = { 0, 0 };
-            int[] figure = { 0, 0 };     
-            
+            int[] figure = { 0, 0 };
+
             int figureWidth = (int)(lockbmp.Width * 76 / 1080);
             int figureHeight = (int)(lockbmp.Width * 210 / 1080);
 
@@ -182,7 +189,7 @@ namespace MyJumpHelper
                     break;
                 }
             }
-            
+
 
             for (int j = (int)(lockbmp.Height * 0.25); j < figure[1]; j++)
             {
@@ -193,7 +200,7 @@ namespace MyJumpHelper
                     curColor = lockbmp.GetPixel(i, j);
                     if (i >= (figure[0] - figureWidth / 2) && i <= (figure[0] + figureWidth / 2) && j >= figure[1] - figureHeight && j <= figure[1])
                     {
-                        
+
                         cache[i, j] = 1;
                     }
                     else if (this.isBgColor(curBgColor, curBgShadow, curColor))
@@ -201,29 +208,30 @@ namespace MyJumpHelper
                         // 需要识别背景色和阴影颜色
                         // lockbmp.SetPixel(i,j,Color.FromArgb(255, 0, 0));
                         cache[i, j] = 1;
-                    }                   
+                    }
                 }
             }
 
             for (int j = (int)(lockbmp.Height * 0.25); j < figure[1]; j++)
-            { 
+            {
                 for (int i = 1; i < (int)(lockbmp.Width - 1); i++)
-                {                   
+                {
                     if (cache[i, j] != 1 && cache[i, j + 1] != 1 && cache[i, j + 2] != 1 && cache[i, j + 3] != 1 && cache[i, j + 4] != 1)
                     {
                         isTargetFound = true;
                         targetStart[0] = i;
                         targetStart[1] = j;
-                        break;                        
+                        break;
 
                     }
                 }
-                if (isTargetFound) {
+                if (isTargetFound)
+                {
                     break;
                 }
             }
 
-           
+
 
             if (!isFigureFound || !isTargetFound)
             {
@@ -239,7 +247,7 @@ namespace MyJumpHelper
 
             targetMid[0] = (int)((targetLeft[0] + targetRight[0]) / 2);
             targetMid[1] = (int)((targetLeft[1] + targetRight[1]) / 2);
-            
+
             for (int i = -15; i < 16; i++)
             {
                 for (int j = -15; j < 16; j++)
@@ -252,13 +260,26 @@ namespace MyJumpHelper
             double distance = Math.Sqrt((targetMid[0] - figure[0]) * (targetMid[0] - figure[0]) + (targetMid[1] - figure[1]) * (targetMid[1] - figure[1]));
 
             int duration = (int)((distance * this.convertRatio) / lockbmp.Width);
-           
+
             lockbmp.UnlockBits();
             this.pictureBox1.Image = (System.Drawing.Image)bmp;
-
             string[] cmd = { "shell input swipe 300 800 300 800 " + duration };
-            this.sendADBCmd(cmd);
-
+            //   textBox1.Text = "distance" + distance + "  duration " + duration;
+            if (Math.Abs(WaitingFlag - distance) > 10)  //猥琐的判断截图是否更换，否则睡一秒
+            {
+                this.sendADBCmd(cmd);                 //发送下一跳距离到adb执行
+                WaitingFlag = distance;
+                exitWaiting = 0;
+            }
+            else
+            {
+                Thread.Sleep(1000);
+                if (++exitWaiting > 2)
+                {             // 等待三次距离依然没更新则不是同一张截图不用睡了      
+                    this.sendADBCmd(cmd);
+                    exitWaiting = 0;
+                }
+            }
         }
 
         private string sendADBCmd(string[] cmdlines)
@@ -325,8 +346,8 @@ namespace MyJumpHelper
             string[] cmd = { "devices" };
             string output = this.sendADBCmd(cmd);
 
-            bool isADBOK = output.Contains("List of devices attached");           
-           
+            bool isADBOK = output.Contains("List of devices attached");
+
             if (isADBOK)
             {
                 output = output.Substring(output.LastIndexOf("List of devices attached") + 24);
@@ -341,7 +362,7 @@ namespace MyJumpHelper
                 else
                 {
                     MessageBox.Show("ADB: 未连接到设备\n" + output);
-                }                
+                }
             }
             else
             {
@@ -387,7 +408,7 @@ namespace MyJumpHelper
                 double value = double.Parse(this.textBox2.Text);
                 if (value >= 2000 && value <= 10000)
                 {
-                    this.jumpInterval = (int)value;                    
+                    this.jumpInterval = (int)value;
                 }
                 else
                 {
@@ -410,5 +431,5 @@ namespace MyJumpHelper
 
         }
     }
-      
-    }
+
+}
